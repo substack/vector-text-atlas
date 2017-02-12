@@ -35,10 +35,11 @@ Atlas.prototype._setupCanvas = function () {
   this.ctx = this.canvas.getContext('2d')
 }
 
-Atlas.prototype.mesh = function (strings, opts) {
+Atlas.prototype.fill = function (strings) {
   var self = this
   var plen = 0, clen = 0
   strings.forEach(function (str) {
+    if (typeof str === 'string') str = { text: str }
     str.text.split('').forEach(function (c) {
       var m = self.characters[c]
       plen += m.positions.length*2
@@ -70,8 +71,48 @@ Atlas.prototype.mesh = function (strings, opts) {
       }
       for (var i = 0; i < m.positions.length; i++) {
         mesh.positions[pi++] = m.positions[i][0]+offset[0]
-        mesh.positions[pi++] = -1-m.positions[i][1]+offset[1]
+        mesh.positions[pi++] = m.positions[i][1]+offset[1]
         len++
+      }
+    })
+  })
+  return mesh
+}
+
+Atlas.prototype.stroke = function (strings, opts) {
+  var self = this
+  if (!opts) opts = {}
+  var width = defined(opts.width, 0.04)
+  var mesh = {
+    positions: [],
+    cells: []
+  }
+  strings.forEach(function (str) {
+    if (typeof str === 'string') str = { text: str }
+    var xpos = 0
+    str.text.split('').forEach(function (c) {
+      var w = self._getWidth(c)
+      var offset = [0,0]
+      if (str.position) {
+        offset[0] += str.position[0]
+        offset[1] += str.position[1]
+      }
+      offset[0] += xpos
+      xpos += w + 0.04
+      var m = self.characters[c]
+      for (var i = 0; i < m.edges.length; i++) {
+        var e = m.edges[i]
+        var a = m.positions[e[0]].slice()
+        var b = m.positions[e[1]].slice()
+        a[0] += offset[0]
+        a[1] += offset[1]
+        b[0] += offset[0]
+        b[1] += offset[1]
+        var mid = [(a[0]+b[0])*0.5,(a[1]+b[1])*0.5]
+        mid[1] += 0.04
+        var len = mesh.positions.length
+        mesh.positions.push(a,b,mid)
+        mesh.cells.push(len,len+1,len+2)
       }
     })
   })
@@ -93,6 +134,9 @@ Atlas.prototype.add = function (str) {
       delaunay: false, exterior: false, interior: true
     })
     var links = {}
+    for (var i = 0; i < m.positions.length; i++) {
+      m.positions[i][1] = -1-m.positions[i][1]
+    }
     for (var i = 0; i < m.edges.length; i++) {
       var edge = m.edges[i]
       if (!links[edge[0]]) links[edge[0]] = []
