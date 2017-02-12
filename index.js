@@ -10,12 +10,14 @@ function Atlas (opts) {
   this.characters = opts.characters || {}
   this.borders = opts.borders || {}
   this.widths = {}
+  this.links = {}
   this._options = opts
   if (opts.elementType === 'uint16') {
     this._elementType = Uint16Array
   } else {
     this._elementType = Uint32Array
   }
+  this._space = defined(opts.space,0.08)
 }
 
 Atlas.prototype._setupCanvas = function () {
@@ -62,7 +64,7 @@ Atlas.prototype.fill = function (strings) {
         offset[1] += str.position[1]
       }
       offset[0] += xpos
-      xpos += w + 0.04
+      xpos += w + self._space
       var m = self.characters[c]
       for (var i = 0; i < m.cells.length; i++) {
         for (var j = 0; j < m.cells[i].length; j++) {
@@ -98,8 +100,9 @@ Atlas.prototype.stroke = function (strings, opts) {
         offset[1] += str.position[1]
       }
       offset[0] += xpos
-      xpos += w + 0.04
+      xpos += w + self._space
       var m = self.characters[c]
+      var links = self._getLinks(c)
       for (var i = 0; i < m.edges.length; i++) {
         var e = m.edges[i]
         var a = m.positions[e[0]]
@@ -114,7 +117,7 @@ Atlas.prototype.stroke = function (strings, opts) {
         var b1 = [b[0]+offset[0]-N[0]*width,b[1]+offset[1]-N[1]*width]
         var n = mesh.positions.length
         mesh.positions.push(a0,a1,b0,b1)
-        mesh.cells.push(n,n+1,n+2,n+2,n+3,n+1)
+        mesh.cells.push(n+0,n+1,n+2,n+2,n+3,n+1)
       }
     })
   })
@@ -162,4 +165,20 @@ Atlas.prototype._getWidth = function (c) {
     w = this.widths[c] = xmax-xmin
   }
   return w
+}
+
+Atlas.prototype._getLinks = function (c) {
+  var links = this.links[c]
+  if (!links) {
+    var mesh = this.characters[c]
+    links = this.links[c] = {}
+    for (var i = 0; i < mesh.edges.length; i++) {
+      var e = mesh.edges[i]
+      if (!links[e[0]]) links[e[0]] = []
+      links[e[0]].push(e[1])
+      if (!links[e[1]]) links[e[1]] = []
+      links[e[1]].push(e[0])
+    }
+  }
+  return links
 }
