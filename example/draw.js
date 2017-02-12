@@ -5,7 +5,7 @@ var regl = require('regl')({ extensions: [ 'oes_element_index_uint' ] })
 var vt = vtext({ characters: require('./chars.json') })
 var strings = [ 'HELLO' ]
 var fill = vt.fill(strings)
-var stroke = vt.stroke(strings, { width: 0.1 })
+var stroke = vt.stroke(strings, { width: 0.04 })
 
 var opts = {
   frag: `
@@ -45,5 +45,5 @@ var draw = {
 regl.frame(function () {
   regl.clear({ color: [0,0,0,1] })
   draw.stroke()
-  //draw.fill()
+  draw.fill()
 })

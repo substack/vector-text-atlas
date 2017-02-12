@@ -102,17 +102,19 @@ Atlas.prototype.stroke = function (strings, opts) {
       var m = self.characters[c]
       for (var i = 0; i < m.edges.length; i++) {
         var e = m.edges[i]
-        var a = m.positions[e[0]].slice()
-        var b = m.positions[e[1]].slice()
-        a[0] += offset[0]
-        a[1] += offset[1]
-        b[0] += offset[0]
-        b[1] += offset[1]
-        var mid = [(a[0]+b[0])*0.5,(a[1]+b[1])*0.5]
-        mid[1] += 0.04
-        var len = mesh.positions.length
-        mesh.positions.push(a,b,mid)
-        mesh.cells.push(len,len+1,len+2)
+        var a = m.positions[e[0]]
+        var b = m.positions[e[1]]
+        var N = [b[1]-a[1],a[0]-b[0]]
+        var ilN = 1/Math.sqrt(N[0]*N[0]+N[1]*N[1])
+        N[0] *= ilN
+        N[1] *= ilN
+        var a0 = [a[0]+offset[0]+N[0]*width,a[1]+offset[1]+N[1]*width]
+        var a1 = [a[0]+offset[0]-N[0]*width,a[1]+offset[1]-N[1]*width]
+        var b0 = [b[0]+offset[0]+N[0]*width,b[1]+offset[1]+N[1]*width]
+        var b1 = [b[0]+offset[0]-N[0]*width,b[1]+offset[1]-N[1]*width]
+        var n = mesh.positions.length
+        mesh.positions.push(a0,a1,b0,b1)
+        mesh.cells.push(n,n+1,n+2,n+2,n+3,n+1)
       }
     })
   })
