@@ -8,6 +8,7 @@ function Atlas (opts) {
   if (!(this instanceof Atlas)) return new Atlas(opts)
   if (!opts) opts = {}
   this.characters = opts.characters || {}
+  this.borders = opts.borders || {}
   this.widths = {}
   this._options = opts
 }
@@ -29,74 +30,36 @@ Atlas.prototype._setupCanvas = function () {
   this.ctx = this.canvas.getContext('2d')
 }
 
-Atlas.prototype.draw = function (strings, opts) {
+Atlas.prototype.mesh = function (strings, opts) {
   var self = this
-  var props = {}
+  var mesh = { positions: [], cells: [] }
+  var len = 0
   strings.forEach(function (str) {
+    if (typeof str === 'string') str = { text: str }
     var xpos = 0
     str.text.split('').forEach(function (c) {
-      var w = self.widths[c]
-      if (!w) {
-        var mesh = self.characters[c]
-        var xmin = Infinity, xmax = -Infinity
-        for (var i = 0; i < mesh.positions.length; i++) {
-          var x = mesh.positions[i][0]
-          xmin = Math.min(xmin,x)
-          xmax = Math.max(xmax,x)
-        }
-        w = self.widths[c] = xmax-xmin
-      }
-      if (!props[c]) props[c] = []
+      var w = self._getWidth(c)
       var offset = [0,0]
       if (str.position) {
         offset[0] += str.position[0]
         offset[1] += str.position[1]
       }
       offset[0] += xpos
-      props[c].push({ offset: offset })
       xpos += w + 0.04
+      var m = self.characters[c]
+      for (var i = 0; i < m.cells.length; i++) {
+        for (var j = 0; j < m.cells[i].length; j++) {
+          mesh.cells.push(len+m.cells[i][j])
+        }
+      }
+      for (var i = 0; i < m.positions.length; i++) {
+        mesh.positions.push(m.positions[i][0]+offset[0])
+        mesh.positions.push(-1-m.positions[i][1]+offset[1])
+        len++
+      }
     })
   })
-  return Object.keys(props).map(function (c) {
-    var mesh = self.characters[c]
-    return {
-      draw: {
-        frag: `
-          precision mediump float;
-          uniform vec4 color;
-          void main () {
-            gl_FragColor = color;
-          }
-        `,
-        vert: `
-          precision highp float;
-          attribute vec2 position;
-          attribute float angle;
-          uniform float aspect, expand;
-          uniform vec2 offset;
-          void main () {
-            //float a = angle;
-            //vec2 p = (position+vec2(cos(a),sin(a))*expand)*0.04;
-            vec2 p = (vec2(position.x,-position.y)+offset)*0.4-vec2(0.5,0.5);
-            gl_Position = vec4(vec3(p,0)*vec3(1,aspect,1),1);
-          }
-        `,
-        uniforms: {
-          aspect: opts.aspect,
-          expand: opts.expand,
-          color: opts.color,
-          offset: opts.offset
-        },
-        attributes: {
-          position: mesh.positions,
-          angle: mesh.angles
-        },
-        depth: { enable: false, mask: false },
-        elements: mesh.cells
-      },
-      props: props[c]
-    }
-  })
+  return mesh
 }
 
 Atlas.prototype.add = function (str) {
@@ -121,14 +84,20 @@ Atlas.prototype.add = function (str) {
       links[edge[0]].push(edge[1])
       links[edge[1]].push(edge[0])
     }
-    m.angles = new Array(m.positions.length)
-    for (var i = 0; i < m.positions.length; i++) {
-      var ai = defined(links[i][0],i)
-      var bi = defined(links[i][1],i)
-      var a = m.positions[ai]
-      var b = m.positions[bi]
-      m.angles[i] = Math.atan2(a[1]-b[1],a[0]-b[0])
-    }
-    delete m.edges
   })
+}
+
+Atlas.prototype._getWidth = function (c) {
+  var w = this.widths[c]
+  if (!w) {
+    var mesh = this.characters[c]
+    var xmin = Infinity, xmax = -Infinity
+    for (var i = 0; i < mesh.positions.length; i++) {
+      var x = mesh.positions[i][0]
+      xmin = Math.min(xmin,x)
+      xmax = Math.max(xmax,x)
+    }
+    w = this.widths[c] = xmax-xmin
+  }
+  return w
 }
