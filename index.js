@@ -11,6 +11,11 @@ function Atlas (opts) {
   this.borders = opts.borders || {}
   this.widths = {}
   this._options = opts
+  if (opts.elementType === 'uint16') {
+    this._elementType = Uint16Array
+  } else {
+    this._elementType = Uint32Array
+  }
 }
 
 Atlas.prototype._setupCanvas = function () {
@@ -32,8 +37,19 @@ Atlas.prototype._setupCanvas = function () {
 
 Atlas.prototype.mesh = function (strings, opts) {
   var self = this
-  var mesh = { positions: [], cells: [] }
-  var len = 0
+  var plen = 0, clen = 0
+  strings.forEach(function (str) {
+    str.text.split('').forEach(function (c) {
+      var m = self.characters[c]
+      plen += m.positions.length*2
+      clen += m.cells.length*3
+    })
+  })
+  var mesh = {
+    positions: new Float32Array(plen),
+    cells: new(self._elementType)(clen)
+  }
+  var len = 0, ci = 0, pi = 0
   strings.forEach(function (str) {
     if (typeof str === 'string') str = { text: str }
     var xpos = 0
@@ -49,12 +65,12 @@ Atlas.prototype.mesh = function (strings, opts) {
       var m = self.characters[c]
       for (var i = 0; i < m.cells.length; i++) {
         for (var j = 0; j < m.cells[i].length; j++) {
-          mesh.cells.push(len+m.cells[i][j])
+          mesh.cells[ci++] = len+m.cells[i][j]
         }
       }
       for (var i = 0; i < m.positions.length; i++) {
-        mesh.positions.push(m.positions[i][0]+offset[0])
-        mesh.positions.push(-1-m.positions[i][1]+offset[1])
+        mesh.positions[pi++] = m.positions[i][0]+offset[0]
+        mesh.positions[pi++] = -1-m.positions[i][1]+offset[1]
         len++
       }
     })

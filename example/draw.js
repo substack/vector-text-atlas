@@ -1,6 +1,6 @@
 var dmerge = require('deep-assign')
 var vtext = require('../')
-var regl = require('regl')()
+var regl = require('regl')({ extensions: [ 'oes_element_index_uint' ] })
 
 var vt = vtext({ characters: require('./chars.json') })
 var mesh = vt.mesh([{text:'HELLO'}])
