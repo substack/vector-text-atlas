@@ -2,7 +2,7 @@
   "name": "vector-text-atlas",
   "version": "1.0.0",
   "main": "index.js",
-  "description": "generate meshes for text rendering offline per-character to save space and resassemble the complete mesh at runtime on the client",
+  "description": "save and reassemble per-character vector text meshes",
   "dependencies": {
     "cdt2d": "^1.0.0",
     "defined": "^1.0.0",
