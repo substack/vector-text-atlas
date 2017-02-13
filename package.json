@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/substack/vector-text-atlast.git"
+    "url": "git+https://github.com/substack/vector-text-atlas.git"
   },
   "keywords": [
     "vector text",
@@ -28,7 +28,7 @@
   "author": "substack",
   "license": "BSD",
   "bugs": {
-    "url": "https://github.com/substack/vector-text-atlast/issues"
+    "url": "https://github.com/substack/vector-text-atlas/issues"
   },
-  "homepage": "https://github.com/substack/vector-text-atlast#readme"
+  "homepage": "https://github.com/substack/vector-text-atlas#readme"
 }
