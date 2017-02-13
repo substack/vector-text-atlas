@@ -2,9 +2,7 @@
   "name": "vector-text-atlas",
   "version": "1.0.0",
   "main": "index.js",
-  "bin": {
-    "vector-text-atlas": "bin/cmd.js"
-  },
+  "description": "generate meshes for text rendering offline per-character to save space and resassemble the complete mesh at runtime on the client",
   "dependencies": {
     "cdt2d": "^1.0.0",
     "defined": "^1.0.0",
@@ -14,5 +12,23 @@
     "canvas": "^1.6.2",
     "regl": "^1.3.0",
     "regl-camera": "^1.1.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/substack/vector-text-atlast.git"
+  },
+  "keywords": [
+    "vector text",
+    "simplicial complex",
+    "webgl",
+    "2d",
+    "3d",
+    "vector"
+  ],
+  "author": "substack",
+  "license": "BSD",
+  "bugs": {
+    "url": "https://github.com/substack/vector-text-atlast/issues"
+  },
+  "homepage": "https://github.com/substack/vector-text-atlast#readme"
 }
