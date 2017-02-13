@@ -7,7 +7,7 @@ module.exports = Atlas
 function Atlas (opts) {
   if (!(this instanceof Atlas)) return new Atlas(opts)
   if (!opts) opts = {}
-  this.characters = opts.characters || {}
+  this.data = opts.data || {}
   this.borders = opts.borders || {}
   this.widths = {}
   this.links = {}
@@ -43,7 +43,7 @@ Atlas.prototype.fill = function (strings) {
   strings.forEach(function (str) {
     if (typeof str === 'string') str = { text: str }
     str.text.split('').forEach(function (c) {
-      var m = self.characters[c]
+      var m = self.data[c]
       plen += m.positions.length*2
       clen += m.cells.length*3
     })
@@ -65,7 +65,7 @@ Atlas.prototype.fill = function (strings) {
       }
       offset[0] += xpos
       xpos += w + self._space
-      var m = self.characters[c]
+      var m = self.data[c]
       for (var i = 0; i < m.cells.length; i++) {
         for (var j = 0; j < m.cells[i].length; j++) {
           mesh.cells[ci++] = len+m.cells[i][j]
@@ -101,7 +101,7 @@ Atlas.prototype.stroke = function (strings, opts) {
       }
       offset[0] += xpos
       xpos += w + self._space
-      var m = self.characters[c]
+      var m = self.data[c]
       var links = self._getLinks(c)
       for (var i = 0; i < m.edges.length; i++) {
         var e = m.edges[i]
@@ -130,8 +130,8 @@ Atlas.prototype.add = function (str) {
   var chars = str.split('')
   self.ctx.clearRect(0,0,8192,1024)
   chars.forEach(function (c) {
-    if (self.characters[c]) return
-    var m = self.characters[c] = vtext(c, {
+    if (self.data[c]) return
+    var m = self.data[c] = vtext(c, {
       canvas: self.canvas,
       context: self.ctx
     })
@@ -155,7 +155,7 @@ Atlas.prototype.add = function (str) {
 Atlas.prototype._getWidth = function (c) {
   var w = this.widths[c]
   if (!w) {
-    var mesh = this.characters[c]
+    var mesh = this.data[c]
     var xmin = Infinity, xmax = -Infinity
     for (var i = 0; i < mesh.positions.length; i++) {
       var x = mesh.positions[i][0]
@@ -170,7 +170,7 @@ Atlas.prototype._getWidth = function (c) {
 Atlas.prototype._getLinks = function (c) {
   var links = this.links[c]
   if (!links) {
-    var mesh = this.characters[c]
+    var mesh = this.data[c]
     links = this.links[c] = {}
     for (var i = 0; i < mesh.edges.length; i++) {
       var e = mesh.edges[i]
