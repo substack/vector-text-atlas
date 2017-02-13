@@ -17,7 +17,7 @@ function Atlas (opts) {
   } else {
     this._elementType = Uint32Array
   }
-  this._space = defined(opts.space,0.08)
+  this._space = defined(opts.space,0.1)
 }
 
 Atlas.prototype._setupCanvas = function () {
