@@ -3,9 +3,9 @@ var assign = require('deep-assign')
 var regl = require('regl')({ extensions: [ 'oes_element_index_uint' ] })
 
 var vt = vtext({ data: require('./data.json') })
-var strings = [ 'HELLO' ]
+var strings = [ 'H' ]
 var fill = vt.fill(strings)
-var stroke = vt.stroke(strings, { width: 0.04 })
+//var stroke = vt.stroke(strings, { width: 0.04 })
 
 var opts = {
   frag: `
@@ -26,24 +26,27 @@ var opts = {
   uniforms: {
     aspect: function (context) {
       return context.viewportWidth / context.viewportHeight
-    }
+    },
+    color: [1,1,1]
   },
   depth: { mask: false, enable: false }
 }
+
 var draw = {
-  fill: regl(assign({}, opts, {
+  fill: regl(Object.assign({}, opts, {
     attributes: { position: fill.positions },
-    elements: fill.cells,
-    uniforms: { color: [1,1,1] }
+    elements: fill.cells
   })),
+  /*
   stroke: regl(assign({}, opts, {
     attributes: { position: stroke.positions },
     elements: stroke.cells,
     uniforms: { color: [1,0,0] }
   }))
+  */
 }
 regl.frame(function () {
   regl.clear({ color: [0,0,0,1] })
-  draw.stroke()
+  //draw.stroke()
   draw.fill()
 })

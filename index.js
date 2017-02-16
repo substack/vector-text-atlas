@@ -5,19 +5,74 @@ var defined = require('defined')
 module.exports = Atlas
 
 function Atlas (opts) {
-  if (!(this instanceof Atlas)) return new Atlas(opts)
+  var self = this
+  if (!(self instanceof Atlas)) return new Atlas(opts)
   if (!opts) opts = {}
-  this.data = opts.data || {}
-  this.borders = opts.borders || {}
-  this.widths = {}
-  this.links = {}
-  this._options = opts
+  self.borders = opts.borders || {}
+  self.widths = {}
+  self.links = {}
+  self._options = opts
   if (opts.elementType === 'uint16') {
-    this._elementType = Uint16Array
+    self._elementType = Uint16Array
   } else {
-    this._elementType = Uint32Array
+    self._elementType = Uint32Array
   }
-  this._space = defined(opts.space,0.1)
+  self._space = defined(opts.space,0.1)
+  self._attrkv = opts.attributes || {}
+  self._attributes = Object.keys(self._attrkv)
+    .map(function (key) { return [key,self._attrkv[key]] })
+
+  self._data = opts.data || {}
+  Object.keys(self._data).forEach(function (key) {
+    Object.keys(self._data[key]).forEach(function (k) {
+      var a, d = self._data[key][k]
+      if (!Array.isArray(d)) return
+      if (k === 'positions') {
+        a = self._data[key][k] = new Float32Array(d.length)
+      } else if (k === 'cells') {
+        a = self._data[key][k] = new(self._elementType)(d.length)
+      } else if (k === 'edges') {
+        a = self._data[key][k] = new(self._elementType)(d.length)
+      } else if (/^(float|vec\d|mat\d)$/.test(self._attrkv[k])) {
+        a = self._data[key][k] = new Float32Array(d.length)
+      } else if (self._attrkv[k] === 'uint8') {
+        a = self._data[key][k] = new Uint8Array(d.length)
+      } else if (self._attrkv[k] === 'uint16') {
+        a = self._data[key][k] = new Uint16Array(d.length)
+      } else if (self._attrkv[k] === 'uint32') {
+        a = self._data[key][k] = new Uint32Array(d.length)
+      } else if (self._attrkv[k] === 'int8') {
+        a = self._data[key][k] = new Int8Array(d.length)
+      } else if (self._attrkv[k] === 'int16') {
+        a = self._data[key][k] = new Int16Array(d.length)
+      } else if (self._attrkv[k] === 'int32') {
+        a = self._data[key][k] = new Int32Array(d.length)
+      } else {
+        throw new Error('unexpected type for key ' + k + ':' + self._attrkv[k])
+      }
+      for (var i = 0; i < d.length; i++) a[i] = d[i]
+    })
+  })
+}
+
+Atlas.prototype.data = function (format) {
+  var self = this
+  if (format === 'array') {
+    var data = {}
+    Object.keys(self._data).forEach(function (key) {
+      data[key] = {
+        positions: [].slice.call(self._data[key].positions),
+        cells: [].slice.call(self._data[key].cells),
+        edges: [].slice.call(self._data[key].edges)
+      }
+      self._attributes.forEach(function (attr) {
+        data[attr[0]] = [].slice.call(self._data[key][attr[0]])
+      })
+    })
+    return data
+  } else if (format === 'typedarray' || true) {
+    return this._data
+  }
 }
 
 Atlas.prototype._setupCanvas = function () {
@@ -43,85 +98,183 @@ Atlas.prototype.fill = function (strings) {
   strings.forEach(function (str) {
     if (typeof str === 'string') str = { text: str }
     str.text.split('').forEach(function (c) {
-      var m = self.data[c]
+      var m = self._data[c]
       plen += m.positions.length*2
       clen += m.cells.length*3
     })
   })
-  var mesh = {
-    positions: new Float32Array(plen),
-    cells: new(self._elementType)(clen)
-  }
+  var mesh = self._newMesh(plen,clen)
+  var ai = self._attributes.map(function (a) { return 0 })
   var len = 0, ci = 0, pi = 0
   strings.forEach(function (str) {
     if (typeof str === 'string') str = { text: str }
     var xpos = 0
     str.text.split('').forEach(function (c) {
       var w = self._getWidth(c)
-      var offset = [0,0]
-      if (str.position) {
-        offset[0] += str.position[0]
-        offset[1] += str.position[1]
-      }
-      offset[0] += xpos
+      var xoffset = xpos
       xpos += w + self._space
-      var m = self.data[c]
+      var m = self._data[c]
+      console.log(m)
       for (var i = 0; i < m.cells.length; i++) {
-        for (var j = 0; j < m.cells[i].length; j++) {
-          mesh.cells[ci++] = len+m.cells[i][j]
-        }
+        mesh.view.cells.setUint32((ci++)*4,len+m.cells[i])
       }
-      for (var i = 0; i < m.positions.length; i++) {
-        mesh.positions[pi++] = m.positions[i][0]+offset[0]
-        mesh.positions[pi++] = m.positions[i][1]+offset[1]
+      for (var i = 0; i < m.positions.length; i+=2) {
+        mesh.view.positions.setFloat32((pi++)*4,m.positions[i+0]+xoffset)
+        mesh.view.positions.setFloat32((pi++)*4,m.positions[i+1])
+        self._setAttributes(mesh,str,ai)
         len++
       }
     })
   })
-  return mesh
+  return mesh.data
 }
 
 Atlas.prototype.stroke = function (strings, opts) {
   var self = this
   if (!opts) opts = {}
   var width = defined(opts.width, 0.04)
-  var mesh = {
-    positions: [],
-    cells: []
-  }
+  var plen = 0, clen = 0
+  strings.forEach(function (str) {
+    if (typeof str === 'string') str = { text: str }
+    str.text.split('').forEach(function (c) {
+      var m = self._data[c]
+      plen += m.positions.length*2*4
+      clen += m.cells.length*3*2
+    })
+  })
+  var mesh = self._newMesh(plen,clen)
+  var ai = self._attributes.map(function (a) { return 0 })
+  var ci = 0, pi = 0
+  var z2 = [0,0]
+  var N = [0,0], a0 = [0,0], a1 = [0,0], b0 = [0,0], b1 = [0,0]
   strings.forEach(function (str) {
     if (typeof str === 'string') str = { text: str }
     var xpos = 0
     str.text.split('').forEach(function (c) {
       var w = self._getWidth(c)
-      var offset = [0,0]
-      if (str.position) {
-        offset[0] += str.position[0]
-        offset[1] += str.position[1]
-      }
-      offset[0] += xpos
+      var xoffset = xpos
       xpos += w + self._space
-      var m = self.data[c]
+      var m = self._data[c]
       var links = self._getLinks(c)
       for (var i = 0; i < m.edges.length; i++) {
         var e = m.edges[i]
         var a = m.positions[e[0]]
         var b = m.positions[e[1]]
-        var N = [b[1]-a[1],a[0]-b[0]]
+        N[0] = b[1]-a[1]
+        N[1] = a[0]-b[0]
         var ilN = 1/Math.sqrt(N[0]*N[0]+N[1]*N[1])
         N[0] *= ilN
         N[1] *= ilN
-        var a0 = [a[0]+offset[0]+N[0]*width,a[1]+offset[1]+N[1]*width]
-        var a1 = [a[0]+offset[0]-N[0]*width,a[1]+offset[1]-N[1]*width]
-        var b0 = [b[0]+offset[0]+N[0]*width,b[1]+offset[1]+N[1]*width]
-        var b1 = [b[0]+offset[0]-N[0]*width,b[1]+offset[1]-N[1]*width]
-        var n = mesh.positions.length
-        mesh.positions.push(a0,a1,b0,b1)
-        mesh.cells.push(n+0,n+1,n+2,n+2,n+3,n+1)
+        a0[0] = a[0]+N[0]*width
+        a0[1] = a[1]+N[1]*width
+        a1[0] = a[0]-N[0]*width
+        a1[1] = a[1]-N[1]*width
+        b0[0] = b[0]+N[0]*width
+        b0[1] = b[1]+N[1]*width
+        b1[0] = b[0]-N[0]*width
+        b1[1] = b[1]-N[1]*width
+        var n = pi*0.5
+        mesh.view.positions.setFloat32((pi++)*4,a0[0])
+        mesh.view.positions.setFloat32((pi++)*4,a0[1])
+        self._setAttributes(mesh,str,ai)
+        mesh.view.positions.setFloat32((pi++)*4,a1[0])
+        mesh.view.positions.setFloat32((pi++)*4,a1[1])
+        self._setAttributes(mesh,str,ai)
+        mesh.view.positions.setFloat32((pi++)*4,b0[0])
+        mesh.view.positions.setFloat32((pi++)*4,b0[1])
+        self._setAttributes(mesh,str,ai)
+        mesh.view.positions.setFloat32((pi++)*4,b1[0])
+        mesh.view.positions.setFloat32((pi++)*4,b1[1])
+        self._setAttributes(mesh,str,ai)
+        mesh.view.cells.setUint32((ci++)*4,n+0)
+        mesh.view.cells.setUint32((ci++)*4,n+1)
+        mesh.view.cells.setUint32((ci++)*4,n+2)
+        mesh.view.cells.setUint32((ci++)*4,n+2)
+        mesh.view.cells.setUint32((ci++)*4,n+3)
+        mesh.view.cells.setUint32((ci++)*4,n+1)
       }
     })
   })
-  return mesh
+  return mesh.data
+}
+
+Atlas.prototype._newMesh = function (plen,clen) {
+  var data = {
+    positions: new Float32Array(plen),
+    cells: new(this._elementType)(clen)
+  }
+  for (var i = 0; i < this._attributes.length; i++) {
+    var key = this._attributes[i]
+    var type = this._atypes[i]
+    if (type === 'float') {
+      data[key] = new Float32Array(plen)
+    } else if (type === 'vec2') {
+      data[key] = new Float32Array(plen*2)
+    } else if (type === 'vec3') {
+      data[key] = new Float32Array(plen*3)
+    } else if (type === 'vec4') {
+      data[key] = new Float32Array(plen*4)
+    } else if (type === 'mat2') {
+      data[key] = new Float32Array(plen*4)
+    } else if (type === 'mat3') {
+      data[key] = new Float32Array(plen*9)
+    } else if (type === 'mat4') {
+      data[key] = new Float32Array(plen*16)
+    } else if (type === 'uint8') {
+      data[key] = new Uint8Array(plen)
+    } else if (type === 'uint16') {
+      data[key] = new Uint16Array(plen)
+    } else if (type === 'uint32') {
+      data[key] = new Uint32Array(plen)
+    }
+  }
+  var view = {}
+  Object.keys(data).forEach(function (key) {
+    view[key] = new DataView(data[key].buffer)
+  })
+  return { view: view, data: data }
+}
+
+Atlas.prototype._setAttributes = function (mesh, str, ai) {
+  for (var j = 0; j < this._attributes.length; j++) {
+    var key = this._attributes[j][0]
+    var type = this._attributes[j][1]
+    if (type === 'float') {
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key])
+    } else if (type === 'vec2') {
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][0])
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][1])
+    } else if (type === 'vec3') {
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][0])
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][1])
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][2])
+    } else if (type === 'vec4' || type === 'mat2') {
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][0])
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][1])
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][2])
+      mesh.view[key].setFloat32((ai[j]++)*4,str[key][3])
+    } else if (type === 'mat3') {
+      for (var k = 0; k < 9; k++) {
+        mesh.view[key].setFloat32((ai[j]++)*4,str[key][k])
+      }
+    } else if (type === 'mat4') {
+      for (var k = 0; k < 16; k++) {
+        mesh.view[key].setFloat32((ai[j]++)*4,str[key][k])
+      }
+    } else if (type === 'uint8') {
+      mesh.view[key].setUint8(ai[j]++,str[key])
+    } else if (type === 'uint16') {
+      mesh.view[key].setUint16((ai[j]++)*2,str[key])
+    } else if (type === 'uint32') {
+      mesh.view[key].setUint32((ai[j]++)*4,str[key])
+    } else if (type === 'int8') {
+      mesh.view[key].setInt8(ai[j]++,str[key])
+    } else if (type === 'int16') {
+      mesh.view[key].setInt16((ai[j]++)*2,str[key])
+    } else if (type === 'int32') {
+      mesh.view[key].setInt32((ai[j]++)*4,str[key])
+    }
+  }
 }
 
 Atlas.prototype.add = function (str) {
@@ -130,24 +283,32 @@ Atlas.prototype.add = function (str) {
   var chars = str.split('')
   self.ctx.clearRect(0,0,8192,1024)
   chars.forEach(function (c) {
-    if (self.data[c]) return
-    var m = self.data[c] = vtext(c, {
+    if (self._data[c]) return
+    var m = vtext(c, {
       canvas: self.canvas,
       context: self.ctx
     })
     m.cells = cdt2d(m.positions, m.edges, {
       delaunay: false, exterior: false, interior: true
     })
-    var links = {}
+    var data = self._data[c] = {
+      positions: new Float32Array(m.positions.length*2),
+      cells: new Uint32Array(m.cells.length*3),
+      edges: new Uint32Array(m.edges.length*2)
+    }
     for (var i = 0; i < m.positions.length; i++) {
-      m.positions[i][1] = -1-m.positions[i][1]
+      data.positions[i*2+0] = m.positions[i][0]
+      data.positions[i*2+1] = -1-m.positions[i][1]
     }
     for (var i = 0; i < m.edges.length; i++) {
-      var edge = m.edges[i]
-      if (!links[edge[0]]) links[edge[0]] = []
-      if (!links[edge[1]]) links[edge[1]] = []
-      links[edge[0]].push(edge[1])
-      links[edge[1]].push(edge[0])
+      data.edges[i*2+0] = m.edges[i][0]
+      data.edges[i*2+1] = m.edges[i][1]
+    }
+    var ci = 0
+    for (var i = 0; i < m.cells.length; i++) {
+      data.cells[ci++] = m.cells[i][0]
+      data.cells[ci++] = m.cells[i][1]
+      data.cells[ci++] = m.cells[i][2]
     }
   })
 }
@@ -155,7 +316,7 @@ Atlas.prototype.add = function (str) {
 Atlas.prototype._getWidth = function (c) {
   var w = this.widths[c]
   if (!w) {
-    var mesh = this.data[c]
+    var mesh = this._data[c]
     var xmin = Infinity, xmax = -Infinity
     for (var i = 0; i < mesh.positions.length; i++) {
       var x = mesh.positions[i][0]
@@ -170,7 +331,7 @@ Atlas.prototype._getWidth = function (c) {
 Atlas.prototype._getLinks = function (c) {
   var links = this.links[c]
   if (!links) {
-    var mesh = this.data[c]
+    var mesh = this._data[c]
     links = this.links[c] = {}
     for (var i = 0; i < mesh.edges.length; i++) {
       var e = mesh.edges[i]
