@@ -99,6 +99,7 @@ Atlas.prototype.fill = function (strings) {
     if (typeof str === 'string') str = { text: str }
     str.text.split('').forEach(function (c) {
       var m = self._data[c]
+      if (!m) throw new Error('character not available: ' + c)
       plen += m.positions.length*2
       clen += m.cells.length*3
     })
@@ -202,9 +203,10 @@ Atlas.prototype._newMesh = function (plen,clen) {
     positions: new Float32Array(plen),
     cells: new(this._elementType)(clen)
   }
+  plen *= 0.5
   for (var i = 0; i < this._attributes.length; i++) {
-    var key = this._attributes[i]
-    var type = this._atypes[i]
+    var key = this._attributes[i][0]
+    var type = this._attributes[i][1]
     if (type === 'float') {
       data[key] = new Float32Array(plen)
     } else if (type === 'vec2') {

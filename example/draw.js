@@ -2,8 +2,14 @@ var vtext = require('../')
 var assign = require('deep-assign')
 var regl = require('regl')({ extensions: [ 'oes_element_index_uint' ] })
 
-var vt = vtext({ data: require('./data.json') })
-var strings = [ 'HELLO' ]
+var vt = vtext({
+  data: require('./data.json'),
+  attributes: { offsets: 'vec2' }
+})
+var strings = [
+  { text: 'HELLO', offsets: [-1.6,0.8] },
+  { text: 'world', offsets: [-0.5,0.2] }
+]
 var fill = vt.fill(strings)
 //var stroke = vt.stroke(strings, { width: 0.04 })
 
@@ -17,10 +23,10 @@ var opts = {
   `,
   vert: `
     precision highp float;
-    attribute vec2 position;
+    attribute vec2 position, offset;
     uniform float aspect;
     void main () {
-      gl_Position = vec4(position*vec2(1,aspect)*0.2,0,1);
+      gl_Position = vec4((position+offset)*vec2(1,aspect)*0.2,0,1);
     }
   `,
   uniforms: {
@@ -34,7 +40,10 @@ var opts = {
 
 var draw = {
   fill: regl(Object.assign({}, opts, {
-    attributes: { position: fill.positions },
+    attributes: {
+      position: fill.positions,
+      offset: fill.offsets
+    },
     elements: fill.cells
   })),
   /*
