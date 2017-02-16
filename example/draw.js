@@ -7,11 +7,11 @@ var vt = vtext({
   attributes: { offsets: 'vec2' }
 })
 var strings = [
-  { text: 'HELLO', offsets: [-1.6,0.8] },
-  { text: 'world', offsets: [-0.5,0.2] }
+  { text: 'HELLO', offsets: [-1.6,0.5] },
+  { text: 'world', offsets: [-0.4,-0.2] }
 ]
 var fill = vt.fill(strings)
-//var stroke = vt.stroke(strings, { width: 0.04 })
+var stroke = vt.stroke(strings, { width: 0.04 })
 
 var opts = {
   frag: `
@@ -32,30 +32,31 @@ var opts = {
   uniforms: {
     aspect: function (context) {
       return context.viewportWidth / context.viewportHeight
-    },
-    color: [1,1,1]
+    }
   },
   depth: { mask: false, enable: false }
 }
 
 var draw = {
-  fill: regl(Object.assign({}, opts, {
+  fill: regl(assign({}, opts, {
     attributes: {
       position: fill.positions,
       offset: fill.offsets
     },
-    elements: fill.cells
+    elements: fill.cells,
+    uniforms: { color: [1,1,1] }
   })),
-  /*
   stroke: regl(assign({}, opts, {
-    attributes: { position: stroke.positions },
+    attributes: {
+      position: stroke.positions,
+      offset: stroke.offsets
+    },
     elements: stroke.cells,
     uniforms: { color: [1,0,0] }
   }))
-  */
 }
 regl.frame(function () {
   regl.clear({ color: [0,0,0,1] })
-  //draw.stroke()
+  draw.stroke()
   draw.fill()
 })
