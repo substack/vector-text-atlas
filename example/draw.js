@@ -3,7 +3,7 @@ var assign = require('deep-assign')
 var regl = require('regl')({ extensions: [ 'oes_element_index_uint' ] })
 
 var vt = vtext({ data: require('./data.json') })
-var strings = [ 'H' ]
+var strings = [ 'HELLO' ]
 var fill = vt.fill(strings)
 //var stroke = vt.stroke(strings, { width: 0.04 })
 
