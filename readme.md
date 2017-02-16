@@ -12,7 +12,7 @@ var msg = process.argv[2]
 var vtext = require('vector-text-atlas')
 var vt = vtext({ canvas: require('canvas') })
 vt.add(msg)
-console.log(JSON.stringify(vt.data))
+console.log(JSON.stringify(vt.data('array')))
 ```
 
 ``` sh
@@ -27,8 +27,14 @@ var vtext = require('vector-text-atlas')
 var assign = require('deep-assign')
 var regl = require('regl')({ extensions: [ 'oes_element_index_uint' ] })
 
-var vt = vtext({ data: require('./data.json') })
-var strings = [ 'HELLO' ]
+var vt = vtext({
+  data: require('./data.json'),
+  attributes: { offsets: 'vec2' }
+})
+var strings = [
+  { text: 'HELLO', offsets: [-1.6,0.5] },
+  { text: 'world', offsets: [-0.4,-0.2] }
+]
 var fill = vt.fill(strings)
 var stroke = vt.stroke(strings, { width: 0.04 })
 
@@ -42,10 +48,10 @@ var opts = {
   `,
   vert: `
     precision highp float;
-    attribute vec2 position;
+    attribute vec2 position, offset;
     uniform float aspect;
     void main () {
-      gl_Position = vec4(position*vec2(1,aspect)*0.2,0,1);
+      gl_Position = vec4((position+offset)*vec2(1,aspect)*0.2,0,1);
     }
   `,
   uniforms: {
@@ -55,14 +61,21 @@ var opts = {
   },
   depth: { mask: false, enable: false }
 }
+
 var draw = {
   fill: regl(assign({}, opts, {
-    attributes: { position: fill.positions },
+    attributes: {
+      position: fill.positions,
+      offset: fill.offsets
+    },
     elements: fill.cells,
     uniforms: { color: [1,1,1] }
   })),
   stroke: regl(assign({}, opts, {
-    attributes: { position: stroke.positions },
+    attributes: {
+      position: stroke.positions,
+      offset: stroke.offsets
+    },
     elements: stroke.cells,
     uniforms: { color: [1,0,0] }
   }))
@@ -83,15 +96,30 @@ var vtext = require('vector-text-atlas')
 ## var vt = vtext(opts)
 
 * `opts.data` - set character mesh data
+* `opts.attributes` - an object mapping per-vertex attributes to types
+
+Attributes are set for each vertex and can be set when specifying a string in
+`fill()` or `stroke()`. Attribute types are:
+
+* `'float'`
+* `'vec2'`,`'vec3'`,`'vec4'`
+* `'mat2'`,`'mat3'`,`'mat4'`
+* `'int8'`,`'int16'`,`'int32'`
+* `'uint8'`,`'uint16'`,`'uint32'`
 
 ## vt.add(str)
 
 Generate mesh data for the characters in the string `str`.
 
-## vt.data
+## var data = vt.data(format)
 
 Per-character mesh data. You can save this data to a file and load it via
 `opts.data`.
+
+The values of `format` are:
+
+* `'array'` - convert typed arrays to arrays (to more easily convert to json)
+* `'typearray'` - return in values as native typed arrays
 
 ## var mesh = vt.fill(strings)
 
@@ -103,6 +131,8 @@ Each string object `str` in `strings`:
 * `str.text` - string to render
 * `str.position` - position of the string
 
+Any configured attributes should be set on the `str` object.
+
 ## var mesh = vt.stroke(strings, opts)
 
 Return simplicial complex for the triangles and vertices that stroke the border
@@ -112,6 +142,8 @@ Each string object `str` in `strings`:
 
 * `str.text` - string to render
 * `str.position` - position of the string
+
+Any configured attributes should be set on the `str` object.
 
 Optionally set:
 
