@@ -10,7 +10,11 @@ first add a string and save the character data to a file:
 ``` js
 var msg = process.argv[2]
 var vtext = require('vector-text-atlas')
-var vt = vtext({ canvas: require('canvas') })
+var vt = vtext({
+  canvas: require('canvas'),
+  vtext: require('vectorize-text'),
+  cdt: require('cdt2d')
+})
 vt.add(msg)
 console.log(JSON.stringify(vt.data('array')))
 ```
@@ -97,6 +101,14 @@ var vtext = require('vector-text-atlas')
 
 * `opts.data` - set character mesh data
 * `opts.attributes` - an object mapping per-vertex attributes to types
+* `opts.canvas` - canvas constructor or instance. required to add strings in
+non-web environment
+* `opts.vtext` - use `require('vectorize-text')`. required to add strings
+* `opts.cdt` - use `require('cdt2d')`. required to add strings
+
+If you do not need to add strings with `vt.add()` in the browser because you
+have foreknowledge to generate the character set ahead of time offline, you
+don't need to specify `opts.vtext` nor `opts.cdt`.
 
 Attributes are set for each vertex and can be set when specifying a string in
 `fill()` or `stroke()`. Attribute types are:

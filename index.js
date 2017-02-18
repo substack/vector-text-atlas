@@ -1,5 +1,3 @@
-var vtext = require('vectorize-text')
-var cdt2d = require('cdt2d')
 var defined = require('defined')
 
 module.exports = Atlas
@@ -18,6 +16,8 @@ function Atlas (opts) {
     self._elementType = Uint32Array
   }
   self._space = defined(opts.space,0.1)
+  self._cdt = opts.cdt
+  self._vtext = opts.vtext
   self._attrkv = opts.attributes || {}
   self._attributes = Object.keys(self._attrkv)
     .map(function (key) { return [key,self._attrkv[key]] })
@@ -270,15 +270,17 @@ Atlas.prototype._setAttributes = function (mesh, str, ai) {
 Atlas.prototype.add = function (str) {
   var self = this
   self._setupCanvas()
+  if (!self._cdt) throw new Error('must provide opts.cdt to add strings')
+  if (!self._vtext) throw new Error('must provide opts.vtext to add strings')
   var chars = str.split('')
   self.ctx.clearRect(0,0,8192,1024)
   chars.forEach(function (c) {
     if (self._data[c]) return
-    var m = vtext(c, {
+    var m = self._vtext(c, {
       canvas: self.canvas,
       context: self.ctx
     })
-    m.cells = cdt2d(m.positions, m.edges, {
+    m.cells = self._cdt(m.positions, m.edges, {
       delaunay: false, exterior: false, interior: true
     })
     var data = self._data[c] = {
